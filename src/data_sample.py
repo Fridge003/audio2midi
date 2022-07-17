@@ -196,7 +196,7 @@ class AudioMidiSampleTemplate:
 
     def __init__(self, song_id):
         self.song_npz = SongNpz(song_id)
-        self.song_folder = SongFolder(song_id)
+        # self.song_folder = SongFolder(song_id)
         self.song_stretched = SongStretched(song_id)
         self.load()
 

@@ -140,7 +140,7 @@ pysoundfile=0.10.3.post1=pyhd3deb0d_0
 python=3.7.10=h88f2d9e_0
 python-dateutil=2.8.2=pyhd3eb1b0_0
 python_abi=3.7=2_cp37m
-pytorch=1.9.0=py3.7_0
+# pytorch=1.9.0=py3.7_0
 pytz=2021.1=pyhd3eb1b0_0
 pyzmq=22.2.1=py37h23ab428_1
 qt=5.9.7=h468cd18_1

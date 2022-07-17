@@ -7,9 +7,12 @@ import numpy as np
 from mir_eval.chord import encode_many
 import librosa
 
-
 def extract_chord(fn):
-    """Extract the chord sequence from input file by madmom."""
+    """Extract the chord sequence from input file by madmom.
+        beat_table returned is in the form as following:
+        array([(0. , 1.6, 'F:maj'), (1.6, 2.5, 'A:maj'), (2.5, 4.1, 'D:maj')],
+            dtype=[('start', '<f8'), ('end', '<f8'), ('label', 'O')])
+    """
     dcp = DeepChromaProcessor()
     dccrp = DeepChromaChordRecognitionProcessor()
     chord_proc = SequentialProcessor([dcp, dccrp])
@@ -17,7 +20,14 @@ def extract_chord(fn):
 
 
 def extract_beat(fn):
-    """Extract the downbeat/beat sequence from input file by madmom."""
+    """Extract the downbeat/beat sequence from input file by madmom.
+        beat_table returned is in the form as following:
+        array([[0.09, 1. ],
+           [0.45, 2. ],
+           ...,
+           [2.14, 3. ],
+           [2.49, 4. ]])
+    """
     rdbp = RNNDownBeatProcessor()
     dbnp = DBNDownBeatTrackingProcessor(beats_per_bar=[3, 4], fps=100)
     beat_proc = SequentialProcessor([rdbp, dbnp])
@@ -26,7 +36,14 @@ def extract_beat(fn):
 
 
 def beat_analysis(ext_beats):
-    """Convert an extracted beat sequence to more structured beat table."""
+    """Convert an extracted beat sequence to more structured beat table.
+    beat_table returned is in the form as following:
+        array([[0.09, 1, 4 ],
+           [0.45, 0, 0],
+           ...,
+           [2.14, 1, 4],
+           [2.49, 0, 0]])
+    """
 
     beat_table = np.zeros((ext_beats.shape[0], 3), dtype=np.float64)
 
@@ -54,6 +71,9 @@ def chord_analysis(ext_chords, beat_secs):
     2. Assign a chord to a beat, satisfying:
         - The chord time-span should cover the beat.
         - The chord start time to the beat is the closest.
+
+    Returned array: [beat_num, 14], each line represent the chroma of the
+            corresponding beat
     """
 
     def round_chord_time(secs):
@@ -77,7 +97,7 @@ def chord_analysis(ext_chords, beat_secs):
         cc = np.roll(c, r) if r != -1 else c
         chroma[i] = cc
 
-    # concat to get 36-d representation
+    # concat to get 14-d representation
     chords = np.concatenate([np.expand_dims(root, -1),
                              chroma,
                              np.expand_dims((bass + root) % 12, -1)],

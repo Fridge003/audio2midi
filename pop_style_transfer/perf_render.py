@@ -138,7 +138,7 @@ def prediction_to_notes(to_notes_func, analysis, predictions, autoregressive):
 
         # Convert prediction to notes
         pred_notes = to_notes_func(predictions[i])
-
+        # pred_notes = to_notes_func(predictions[int(i/2)])
 
         start_beat = db_id
 
