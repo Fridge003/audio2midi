@@ -33,18 +33,20 @@ DATA_PATH = os.path.realpath(os.path.join(os.path.dirname(__file__), '..', 'data
 TRANSCRIBER_PATH = os.path.join(PARAM_PATH, 'pretrained_onsets_and_frames.pt')
 MODEL_PATH = os.path.join(PARAM_PATH, 'a2s-stage1.pt')
 SONG_PATH = os.path.join(DATA_PATH, 'audio_stretched')
+TEST_AUDIO_PATH = os.path.join(DATA_PATH, 'input_audio')
+ANALYSIS_PATH = os.path.join(DATA_PATH, 'analysis')
+CLASSICAL_MIDI_PATH = os.path.join(DATA_PATH, 'classical_midi')
+INFERENCE_OUT_PATH = os.path.join(DATA_PATH, 'inference_out')
 input_analysis_npy_path = None
-save_analysis_npy_path = os.path.join('..', 'data', 'analysis', 'demo.npy')
-# save_analysis_npy_path = os.path.join('..', 'data', 'analysis', 'analysis_pop01.npy')
-normal_midi_path = 'normal_inf.mid'
-classical_midi_path = 'classical_inf.mid'
-# texture_input_path = 'Chopin-raindrop.mid'
-texture_input_path = 'Moonlight.mid'
-tempo_removed_path = 'untempoed.mid'
-score_path = 'score.mid'
-output_path = 'output.mid'
-acc_audio_path = os.path.join('..', 'test', 'accompaniment_audio', 'demo.wav')
-# acc_audio_path = os.path.join('..', 'data', 'audio_stretched', '001.wav')
+save_analysis_npy_path = os.path.join(ANALYSIS_PATH, 'demo.npy')
+# save_analysis_npy_path = os.path.join(ANALYSIS_PATH, 'analysis_pop01.npy')
+texture_input_path = os.path.join(CLASSICAL_MIDI_PATH, 'Moonlight.mid')
+inference_midi_path = os.path.join(INFERENCE_OUT_PATH, 'classical_inf.mid')
+tempo_removed_path =  os.path.join(INFERENCE_OUT_PATH, 'untempoed.mid')
+score_path =  os.path.join(INFERENCE_OUT_PATH, 'score.mid')
+output_path =  os.path.join(INFERENCE_OUT_PATH, 'output.mid')
+acc_audio_path = os.path.join(TEST_AUDIO_PATH, 'demo.wav')
+# acc_audio_path = os.path.join(TEST_AUDIO_PATH, '001.wav')
 model = prepare_model('a2s', stage=0, model_path=MODEL_PATH)
 device = model.device
 batch_size = 32
@@ -71,7 +73,6 @@ print(f"Audio tempo = {audio_tempo}")
 
 
 stretched_song, spb, rates = stretch_a_song(analysis[:, 0], audio)
-
 # segment a song into 2-bar segments (batches)
 audios, chords = segment_a_song(analysis, stretched_song, spb)
 
@@ -123,7 +124,7 @@ print(f'prediction shape = {predictions.shape}')
 
 
 print("Rendering predictions:")
-write_prediction(classical_midi_path, to_notes_func, analysis,
+write_prediction(inference_midi_path, to_notes_func, analysis,
                    predictions, audio, sr,
                    autoregressive=False)
 
