@@ -101,7 +101,7 @@ def pred_to_notes(model, analysis, predictions):
              for pred in predictions]
 
 
-def prediction_to_notes(to_notes_func, analysis, predictions, autoregressive):
+def prediction_to_notes(to_notes_func, analysis, predictions, autoregressive, bars_overlapped):
     """
     Convert model predictions to a continuous piece:
     - Translate the onset to the corresponding downbeat
@@ -137,8 +137,10 @@ def prediction_to_notes(to_notes_func, analysis, predictions, autoregressive):
                 _update_truncate_and_jump(analysis, db_ids, i, db_id, jump)
 
         # Convert prediction to notes
-        pred_notes = to_notes_func(predictions[i])
-        # pred_notes = to_notes_func(predictions[int(i/2)])
+        if bars_overlapped:
+            pred_notes = to_notes_func(predictions[i])
+        else:
+            pred_notes = to_notes_func(predictions[int(i/2)])
 
         start_beat = db_id
 
@@ -169,10 +171,11 @@ def prediction_to_notes(to_notes_func, analysis, predictions, autoregressive):
 
 
 def write_prediction(output_fn, to_notes_func, analysis,
-                     predictions, audio, sr, autoregressive):
+                     predictions, audio, sr, autoregressive, bars_overlapped=True):
+
     # convert predicted pianotree to pretty_midi notes. render note velocities.
     notes = prediction_to_notes(to_notes_func, analysis,
-                                predictions, autoregressive)
+                                predictions, autoregressive, bars_overlapped)
 
     # retrieve two features for simple rule-based performance rendering
     change_times = chord_change_times(analysis)

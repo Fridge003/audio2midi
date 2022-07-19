@@ -407,6 +407,15 @@ def midi_to_pr_with_tempo(original_midi_path, output_path, tempo_removed_path, a
     return tensors
 
 
+def pick_bar_from_tensors(tensors, bar_idx):
+    target_seg = tensors[bar_idx // 2]
+    if bar_idx % 2 == 0:
+        return target_seg[0:16]
+    else:
+        return target_seg[16:]
+
+
+
 if __name__ == "__main__":
     MIDI_PATH, OUTPUT_PATH, UNTEMPO_PATH = 'Pathetique.mid', 'output.mid', 'untempoed.mid'
     midi_to_pr_with_tempo(MIDI_PATH, OUTPUT_PATH, UNTEMPO_PATH, audio_tempo=62)

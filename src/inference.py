@@ -24,7 +24,7 @@ from pop_style_transfer.chord_and_beat import analyze_chord_and_beat
 from pop_style_transfer.time_stretch_song import stretch_a_song
 from pop_style_transfer.perf_render import write_prediction
 from midi_to_pr import midi_to_pr_with_tempo, midi_to_pr_without_tempo, tensors_to_piano_tree, tensor_to_score
-
+from arrange_texture import phrase_arrange, Phrasing
 
 
 PARAM_PATH = os.path.realpath(os.path.join(os.path.dirname(__file__),
@@ -37,16 +37,19 @@ TEST_AUDIO_PATH = os.path.join(DATA_PATH, 'input_audio')
 ANALYSIS_PATH = os.path.join(DATA_PATH, 'analysis')
 CLASSICAL_MIDI_PATH = os.path.join(DATA_PATH, 'classical_midi')
 INFERENCE_OUT_PATH = os.path.join(DATA_PATH, 'inference_out')
+MUSIC_FORM_PATH = os.path.join(DATA_PATH, 'music_form')
 input_analysis_npy_path = None
 save_analysis_npy_path = os.path.join(ANALYSIS_PATH, 'demo.npy')
-# save_analysis_npy_path = os.path.join(ANALYSIS_PATH, 'analysis_pop01.npy')
-texture_input_path = os.path.join(CLASSICAL_MIDI_PATH, 'Moonlight.mid')
+texture_input_path = os.path.join(CLASSICAL_MIDI_PATH, 'Pathetique.mid')
 inference_midi_path = os.path.join(INFERENCE_OUT_PATH, 'classical_inf.mid')
 tempo_removed_path =  os.path.join(INFERENCE_OUT_PATH, 'untempoed.mid')
 score_path =  os.path.join(INFERENCE_OUT_PATH, 'score.mid')
 output_path =  os.path.join(INFERENCE_OUT_PATH, 'output.mid')
+demo_music_form_path = os.path.join(MUSIC_FORM_PATH, 'demo.pkl')
+pathetique_music_form_path = os.path.join(MUSIC_FORM_PATH, 'pathetqiue.pkl')
 acc_audio_path = os.path.join(TEST_AUDIO_PATH, 'demo.wav')
-# acc_audio_path = os.path.join(TEST_AUDIO_PATH, '001.wav')
+
+
 model = prepare_model('a2s', stage=0, model_path=MODEL_PATH)
 device = model.device
 batch_size = 32
@@ -54,7 +57,7 @@ batch_size = 32
 '''
 
 analysis = analyze_chord_and_beat(acc_audio_path,
-                              input_analysis_npy_path,
+                                  save_analysis_npy_path,
                                   save_analysis_npy_path)
 '''
 
@@ -76,11 +79,17 @@ stretched_song, spb, rates = stretch_a_song(analysis[:, 0], audio)
 # segment a song into 2-bar segments (batches)
 audios, chords = segment_a_song(analysis, stretched_song, spb)
 
+# only pick the elements with even index in audios and chords, so that segments picked are not overlapped
+audios, chords = audios[::2], chords[::2]
+
+
 to_notes_func = lambda x: model.pianotree_dec. \
     grid_to_pr_and_notes(x, 60., 0., False)[1]
 
 sym_src = midi_to_pr_with_tempo(original_midi_path=texture_input_path, output_path=output_path,
                                 tempo_removed_path=tempo_removed_path, audio_tempo=audio_tempo)
+
+sym_src = phrase_arrange(sym_src, pathetique_music_form_path, demo_music_form_path)
 
 sym_id, sym_src_len = 0, len(sym_src)
 
@@ -120,19 +129,19 @@ predictions = np.concatenate(predictions, 0)
 sym_used = torch.cat(sym_used, dim=0)
 score = tensors_to_piano_tree(sym_used)
 # print(score[0], score[1])
-print(f'prediction shape = {predictions.shape}')
+#print(f'prediction shape = {predictions.shape}')
 
 
-print("Rendering predictions:")
+print("Rendering predictions......\n")
 write_prediction(inference_midi_path, to_notes_func, analysis,
                    predictions, audio, sr,
-                   autoregressive=False)
+                   autoregressive=False, bars_overlapped=False)
 
 
-print("Rendering Score: ")
+print("Rendering Score......\n")
 write_prediction(score_path, to_notes_func, analysis,
                  score, audio, sr,
-                 autoregressive=False)
+                 autoregressive=False, bars_overlapped=False)
 
 
 

@@ -18,7 +18,6 @@ def segment_a_song(analysis, stretched_song, spb):
 
     pre_step = 1000
     db_ids = np.where(analysis[:, 1])[0]  # downbeat positions
-
     # initialize output audios and chords
     audios = np.zeros((len(db_ids), spb * 8 + pre_step), dtype=np.float64)
     chords = np.zeros((len(db_ids), 8, 14), dtype=np.int64)
