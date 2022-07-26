@@ -40,13 +40,13 @@ INFERENCE_OUT_PATH = os.path.join(DATA_PATH, 'inference_out')
 MUSIC_FORM_PATH = os.path.join(DATA_PATH, 'music_form')
 input_analysis_npy_path = None
 save_analysis_npy_path = os.path.join(ANALYSIS_PATH, 'demo.npy')
-texture_input_path = os.path.join(CLASSICAL_MIDI_PATH, 'Pathetique.mid')
+texture_input_path = os.path.join(CLASSICAL_MIDI_PATH, 'Revolutionary.mid')
 inference_midi_path = os.path.join(INFERENCE_OUT_PATH, 'classical_inf.mid')
 tempo_removed_path =  os.path.join(INFERENCE_OUT_PATH, 'untempoed.mid')
 score_path =  os.path.join(INFERENCE_OUT_PATH, 'score.mid')
 output_path =  os.path.join(INFERENCE_OUT_PATH, 'output.mid')
 demo_music_form_path = os.path.join(MUSIC_FORM_PATH, 'demo.pkl')
-pathetique_music_form_path = os.path.join(MUSIC_FORM_PATH, 'pathetqiue.pkl')
+classical_music_form_path = os.path.join(MUSIC_FORM_PATH, 'Revolutionary.pkl')
 acc_audio_path = os.path.join(TEST_AUDIO_PATH, 'demo.wav')
 
 
@@ -87,9 +87,9 @@ to_notes_func = lambda x: model.pianotree_dec. \
     grid_to_pr_and_notes(x, 60., 0., False)[1]
 
 sym_src = midi_to_pr_with_tempo(original_midi_path=texture_input_path, output_path=output_path,
-                                tempo_removed_path=tempo_removed_path, audio_tempo=audio_tempo)
+                                tempo_removed_path=tempo_removed_path, audio_tempo=audio_tempo, restrict_ratio=1.0)
 
-sym_src = phrase_arrange(sym_src, pathetique_music_form_path, demo_music_form_path)
+sym_src = phrase_arrange(sym_src, classical_music_form_path, demo_music_form_path)
 
 sym_id, sym_src_len = 0, len(sym_src)
 

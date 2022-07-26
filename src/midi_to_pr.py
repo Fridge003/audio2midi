@@ -346,7 +346,7 @@ def stretch_note(note_collector, segments, stretch_ratio=1.0):
 
 
 
-def midi_to_pr_with_tempo(original_midi_path, output_path, tempo_removed_path, audio_tempo):
+def midi_to_pr_with_tempo(original_midi_path, output_path, tempo_removed_path, audio_tempo, restrict_ratio=None):
 
     eps = 1e-1
 
@@ -377,6 +377,8 @@ def midi_to_pr_with_tempo(original_midi_path, output_path, tempo_removed_path, a
 
     # do time-to-time stretching to collected notes
     stretch_ratio = estimate_ratio(audio_tempo, texture_tempo)
+    if restrict_ratio:
+        stretch_ratio = restrict_ratio
     print(f"stretch ratio = {stretch_ratio}")
     # stretch_ratio = 1.0
     stretched_notes, stretched_segments = stretch_note(note_collector, segments, stretch_ratio)

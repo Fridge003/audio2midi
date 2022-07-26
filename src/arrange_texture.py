@@ -16,6 +16,7 @@ save_analysis_npy_path = os.path.join(ANALYSIS_PATH, 'demo.npy')
 demo_music_form_path = os.path.join(MUSIC_FORM_PATH, 'demo.pkl')
 pathetique_music_form_path = os.path.join(MUSIC_FORM_PATH, 'pathetqiue.pkl')
 texture_input_path = os.path.join(CLASSICAL_MIDI_PATH, 'Pathetique.mid')
+revo_music_form_path = os.path.join(MUSIC_FORM_PATH, 'Revolutionary.pkl')
 output_path =  os.path.join(INFERENCE_OUT_PATH, 'output.mid')
 tempo_removed_path =  os.path.join(INFERENCE_OUT_PATH, 'untempoed.mid')
 
@@ -127,13 +128,15 @@ demo_phrase = [['intro', 4, 0], ['A', 8, 0], ['B', 8, 0], ['C', 8, 0], ['X1', 2,
                ['A', 8, 1], ['B', 8, 1], ['C', 8, 1], ['X2', 8, 0], ['D', 6, 0], ['C', 8, 2], ['outro', 2, 0]]
 
 
-pat_phrase = {'A1':{'length':8, 'locations':[[0, 8], [16, 24], [56, 64]]},
-              'A2':{'length':8, 'locations':[[8, 16], [24, 32], [64, 72]]},
-              'B1':{'length':8, 'locations':[[32, 40]]},
-              'B2':{'length':4, 'locations':[[40, 44]]},
+pat_phrase = {'A':{'length':8, 'locations':[[0, 8], [16, 24], [56, 64]]},
+              'B':{'length':8, 'locations':[[8, 16], [24, 32], [64, 72]]},
+              'C':{'length':8, 'locations':[[32, 40]]},
+              'D':{'length':4, 'locations':[[40, 44]]},
               'X1':{'length':8, 'locations':[[44, 52]]},
               'X2':{'length':4, 'locations':[[52, 56]]}}
 
+revo_phrase = [['intro', 8, 0], ['X', 2, 0], ['A', 8, 0], ['X', 2, 1], ['B', 8, 0], ['C', 8, 0], ['D', 4, 0],
+               ['intro', 8, 1], ['X', 2, 2], ['A', 8, 1], ['X', 2, 3], ['B', 8, 1], ['E', 8, 0], ['outro', 8, 0]]
 
 
 def combine_bars(tensors):
@@ -186,10 +189,6 @@ def phrase_arrange(tensors, texture_music_form_path, audio_music_form_path):
 
 if __name__ == "__main__":
 
-    with open(demo_music_form_path, 'wb') as f:
-        p = Phrasing(demo_phrase)
-        pickle.dump(p, f)
-
-    with open(pathetique_music_form_path, 'wb') as f:
-        p = Phrasing(pat_phrase)
-        pickle.dump(p, f)
+    with open(demo_music_form_path, 'rb') as f:
+         p = pickle.load(f)
+         print(p.phrase_dict.keys())
