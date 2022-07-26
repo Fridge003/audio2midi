@@ -64,6 +64,29 @@ class Phrasing():
             lst.append([phrase[0], phrase[1][1]-phrase[1][0], phrase[2]])
         return lst
 
+    # search for the phrases that are the former neighbors to query phrase along the timeline
+    # eg: if the phrase_timeline is ['A', 'B', 'C', 'C', 'B', 'A'] and input 'B' to this function
+    # since 'B' appears in position 1 and 4, we return the element in position 0 and 3, namely ['A', 'C']
+    def get_former_neighboring_phrases(self, query_phrase):
+        lst = []
+        for id, pharse_tuple in enumerate(self.phrase_timeline):
+            if id == 0:
+                continue
+            current_phrase = phrase_tuple[0]
+            if current_phrase == query_phrase:
+                lst.append(self.phrase_timeline[id - 1][0])
+        return lst
+
+    # symmetric to the last function
+    def get_latter_neighboring_phrases(self, query_phrase):
+        lst = []
+        for id, pharse_tuple in enumerate(self.phrase_timeline):
+            if id == len(self.phrase_timeline) - 1:
+                continue
+            current_phrase = phrase_tuple[0]
+            if current_phrase == query_phrase:
+                lst.append(self.phrase_timeline[id + 1][0])
+        return lst
 
     @staticmethod
     def construct_phrase_mapping(audio_phrase, texture_phrase):
@@ -78,25 +101,40 @@ class Phrasing():
         # search for the appropriate texture phrase in a heuristic way
         for query in phrase_to_be_matched:
             max_score, best_match = -1, 'None'
-            for key in classical_phrase_for_choice:
-                matching_score = Phrasing.heuritic_matching_score(query, key, audio_phrase_dict[query],
-                                                                  texture_phrase_dict[key])
-                if key not in visited: # prefer the phrase that hasn't been used
+            for ref in classical_phrase_for_choice:
+                matching_score = Phrasing.heuritic_matching_score(query, ref, audio_phrase_dict[query],
+                                                                  texture_phrase_dict[ref])
+                if ref not in visited: # prefer the phrase that hasn't been used
                     matching_score += 1
+
                 if matching_score > max_score:
-                    max_score, best_match = matching_score, key
+                    max_score, best_match = matching_score, ref
 
             matching_result[query] = best_match
             visited.add(best_match)
 
         return matching_result
 
-    @staticmethod
-    def is_offcut(phrase):
-        return phrase == 'intro' or phrase == 'outro' or phrase.upper()[0] == 'X'
 
     @staticmethod
-    def heuritic_matching_score(query, key, audio_phrase_info, texture_phrase_info):
+    def is_intro(phrase):
+        return phrase[0] == 'i'
+
+    @staticmethod
+    def is_outro(phrase):
+        return phrase[0] == 'o'
+
+    @staticmethod
+    def is_transitional(phrase):
+        return phrase.upper()[0] == 'X'
+
+    # whether a phrase is a theme, or a structural phrase such as intro, outro or transitional segments
+    @staticmethod
+    def is_theme(phrase):
+        return not (phrase == 'intro' or phrase == 'outro' or phrase.upper()[0] == 'X')
+
+    @staticmethod
+    def heuritic_matching_score(query, ref, audio_phrase_info, texture_phrase_info):
 
         score = 0
         # prefer phrases with same or larger length
@@ -104,15 +142,21 @@ class Phrasing():
             score += 1
         elif audio_phrase_info['length'] < texture_phrase_info['length']:
             score += 0.5
+        else:
+            score -= 100 # in any case, the reference phrase should be no shorter than query phrase
 
         # prefer the phrase that has repeated for the same times
         if len(audio_phrase_info['locations']) == len(texture_phrase_info['locations']):
             score += 1
 
-        if Phrasing.is_offcut(query) and Phrasing.is_offcut(key):
+        # if query and reference are the same type of phrase, the reference will be strongly preferred
+        if Phrasing.is_intro(query) and Phrasing.is_intro(ref):
             score += 3
-
-        if (not Phrasing.is_offcut(query)) and (not Phrasing.is_offcut(key)):
+        if Phrasing.is_outro(query) and Phrasing.is_outro(ref):
+            score += 3
+        if Phrasing.is_transitional(query) and Phrasing.is_transitional(ref):
+            score += 3
+        if Phrasing.is_theme(query) and Phrasing.is_theme(ref):
             score += 3
 
         return score
@@ -167,8 +211,6 @@ def phrase_arrange(tensors, texture_music_form_path, audio_music_form_path):
         texture_structure = pickle.load(f)
 
     mapping = Phrasing.construct_phrase_mapping(audio_stucture, texture_structure)
-    # mapping = {'intro':'X2', 'A':'A1', 'B':'A2', 'C':'B1', 'X1':'X2', 'X2':'X1', 'D':'X1', 'outro':'B2'}
-
     arranged_tensors = []
     audio_phrase_timeline = audio_stucture.phrase_timeline
     texture_phrase_dict = texture_structure.phrase_dict

@@ -40,13 +40,13 @@ INFERENCE_OUT_PATH = os.path.join(DATA_PATH, 'inference_out')
 MUSIC_FORM_PATH = os.path.join(DATA_PATH, 'music_form')
 input_analysis_npy_path = None
 save_analysis_npy_path = os.path.join(ANALYSIS_PATH, 'demo.npy')
-texture_input_path = os.path.join(CLASSICAL_MIDI_PATH, 'Revolutionary.mid')
+texture_input_path = os.path.join(CLASSICAL_MIDI_PATH, 'Pathetique.mid')
 inference_midi_path = os.path.join(INFERENCE_OUT_PATH, 'classical_inf.mid')
 tempo_removed_path =  os.path.join(INFERENCE_OUT_PATH, 'untempoed.mid')
 score_path =  os.path.join(INFERENCE_OUT_PATH, 'score.mid')
 output_path =  os.path.join(INFERENCE_OUT_PATH, 'output.mid')
 demo_music_form_path = os.path.join(MUSIC_FORM_PATH, 'demo.pkl')
-classical_music_form_path = os.path.join(MUSIC_FORM_PATH, 'Revolutionary.pkl')
+classical_music_form_path = os.path.join(MUSIC_FORM_PATH, 'Pathetqiue.pkl')
 acc_audio_path = os.path.join(TEST_AUDIO_PATH, 'demo.wav')
 
 
