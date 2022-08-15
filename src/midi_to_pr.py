@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from mido import MidiFile
 from math import ceil
+from utils import nmat_to_pianotree_repr
 
 # remove the tempo curve of a midi file, thus setting its tempo to the default 120
 def remove_tempo(midi_path, save_path):
@@ -127,36 +128,58 @@ def get_segment_tempos(midi_path):
 
 
 
-def tensors_to_piano_tree(tensors):
+def tensors_to_piano_tree(tensors,  max_note_count=16, dur_pad_ind=2,
+                          min_pitch=0, pitch_sos_ind=128, pitch_eos_ind=129,
+                          pitch_pad_ind=130):
     score = []
     for tensor in tensors:
-        # each tensor is in size (32, 128),
-        # we know want to convert it into pianotree format with size (32, 15, 6)
-        segment = []
-        pitch_num_count = np.zeros(32, dtype=int)
-        pitches = 129 * torch.ones([32, 15, 1])
-        durations = torch.zeros([32, 15, 5])
+        nmat = []
         note_positions = torch.nonzero(tensor) # each nonzero element in tensor represents a note
         for note in note_positions:
-            t, pitch = int(note[0]), note[1]
-            dur, pitch_id = int(tensor[t][pitch]), pitch_num_count[t]
-            pitches[t][pitch_id][0] = pitch
-            while dur > 0:
-                binary_pointer = 4
-                if dur % 2 == 1:
-                    durations[t][pitch_id][binary_pointer] = 1
-                    dur = (dur - 1) / 2
-                else:
-                    dur = dur / 2
-                binary_pointer -= 1
-            pitch_num_count[t] += 1
-
-        pt = torch.cat([pitches, durations], dim=-1)
-        score.append(torch.unsqueeze(pt, dim=0))
+            onset, pitch = int(note[0]), note[1]
+            dur = int(tensor[onset][pitch])
+            nmat.append((onset, pitch, dur))
+        pno_tree = np.expand_dims(nmat_to_pianotree_repr(nmat), axis=0)
+        score.append(pno_tree)
+    score = np.concatenate(score, 0)
+    return score
 
 
-    score = torch.cat(score, dim=0)
-    return score.numpy().astype(int)
+    # score = []
+    # for tensor in tensors:
+        # each tensor is in size (32, 128),
+        # we know want to convert it into pianotree format with size (32, 15, 6)
+        # segment = []
+
+        # pitch_num_count = np.zeros(32, dtype=int)
+        # pitches = 129 * torch.ones([32, 15, 1])
+        # durations = torch.zeros([32, 15, 5])
+        # note_positions = torch.nonzero(tensor) # each nonzero element in tensor represents a note
+
+    #     for note in note_positions:
+    #         t, pitch = int(note[0]), note[1]
+    #         dur, pitch_id = int(tensor[t][pitch]), pitch_num_count[t]
+    #         pitches[t][pitch_id][0] = pitch
+    #         while dur > 0:
+    #             binary_pointer = 4
+    #             if dur % 2 == 1:
+    #                 durations[t][pitch_id][binary_pointer] = 1
+    #                 dur = (dur - 1) / 2
+    #             else:
+    #                 dur = dur / 2
+    #             binary_pointer -= 1
+    #         pitch_num_count[t] += 1
+    #
+    #     # pt = torch.cat([pitches, durations], dim=-1)
+    #     score.append(torch.unsqueeze(pt, dim=0))
+    #
+    #
+    # score = torch.cat(score, dim=0)
+    # return score.numpy().astype(int)
+
+
+
+
 
 
 
@@ -177,132 +200,6 @@ def tensor_to_score(tensors, output_path):
                                               end=note_start + dur * 0.125))
     output.write(output_path)
 
-
-def midi_to_pr_original(original_midi_path, output_path, tempo_removed_path):
-
-    eps = 1e-1
-
-    default_tempo = 120
-    remove_tempo(original_midi_path, tempo_removed_path)
-
-    midi = pm.PrettyMIDI(tempo_removed_path)
-
-    tensors = []
-
-    # if left hand and right hand are seperated, then track_num = 2, else track_num = 1
-    track_num = len(midi.instruments)
-    assert track_num <= 2
-    two_track = (track_num == 2)
-
-    tempos = get_segment_tempos(original_midi_path)
-    downbeats = midi.get_downbeats()
-    beats = midi.get_beats()
-    terminal_time = midi.get_end_time()
-
-
-    notes = midi.instruments[0].notes
-    notes_iter = iter(notes)
-    next_note = next(notes_iter)
-    if two_track:
-        notes_extra = midi.instruments[1].notes
-        notes_extra_iter = iter(notes_extra)
-        next_note_extra = next(notes_extra_iter)
-
-
-    bars = preprocess_bars(beats=beats, downbeats=downbeats)
-    segments = bars_to_segments(bars, terminal_time)
-
-    assert len(tempos) == len(segments)
-    # extracting notes from 2-bar segments and producing tensors
-    for seg_id, segment in enumerate(segments):
-
-        tensor = torch.zeros([32, 128])
-        seg_start, seg_end, seg_beats = segment
-
-        # since prior bars might be skipped, keep iterating until the note is later than segment_start
-        while(next_note and next_note.start < seg_start - eps):
-            next_note = next(notes_iter, None)
-
-        if two_track:
-            while(next_note_extra and next_note_extra.start < seg_start - eps):
-                next_note_extra = next(notes_extra_iter, None)
-
-        unit_time = 60 / (4 * default_tempo) # taking a quarter of beat as the time unit
-        while next_note and next_note.start <= seg_end - eps:
-            idx = int(round((next_note.start - seg_start) / unit_time , 0))
-            if idx >= 32:
-                break
-            dur = round((next_note.end - next_note.start) / unit_time , 0)
-            tensor[idx][next_note.pitch] = dur
-            next_note = next(notes_iter, None)
-
-        if two_track:
-            while next_note_extra and next_note_extra.start <= seg_end - eps:
-                idx = int(round((next_note_extra.start - seg_start) / unit_time , 0))
-                if idx >= 32:
-                    break
-                dur = round((next_note_extra.end - next_note_extra.start) / unit_time , 0)
-                tensor[idx][next_note_extra.pitch] = dur
-                next_note_extra = next(notes_extra_iter, None)
-
-        tensors.append(tensor)
-
-    tensor_to_score(tensors, output_path)
-    return tensors
-
-
-def midi_to_pr_without_tempo(original_midi_path, output_path, tempo_removed_path):
-
-    eps = 1e-1
-
-    default_tempo = 120
-    remove_tempo(original_midi_path, tempo_removed_path)
-
-    midi = pm.PrettyMIDI(tempo_removed_path)
-
-    tensors = []
-
-    downbeats = midi.get_downbeats()
-    beats = midi.get_beats()
-    terminal_time = midi.get_end_time()
-
-    note_collector = []
-    for inst in midi.instruments:
-        track = inst.notes
-        for note in track:
-            note_collector.append({'start':note.start, 'end':note.end, 'pitch':note.pitch})
-
-    # sort all the notes depending on starting time
-    note_collector.sort(key=lambda x:x['start'])
-    note_iter = iter(note_collector)
-    next_note = next(note_iter, None)
-
-    bars = preprocess_bars(beats=beats, downbeats=downbeats)
-    segments = bars_to_segments(bars, terminal_time)
-
-    # extracting notes from 2-bar segments and producing tensors
-    for seg_id, segment in enumerate(segments):
-
-        tensor = torch.zeros([32, 128])
-        seg_start, seg_end, seg_beats = segment
-
-        # since prior bars might be skipped, keep iterating until the note is later than segment_start
-        while(next_note and next_note['start'] < seg_start - eps):
-            next_note = next(note_iter, None)
-
-        unit_time = 60 / (4 * default_tempo) # taking a quarter of beat as the time unit
-        while next_note and next_note['start'] <= seg_end - eps:
-            idx = int(round((next_note['start'] - seg_start) / unit_time , 0))
-            if idx >= 32:
-                break
-            dur = round((next_note['end'] - next_note['start']) / unit_time , 0)
-            tensor[idx][next_note['pitch']] = dur
-            next_note = next(note_iter, None)
-
-        tensors.append(tensor)
-
-    tensor_to_score(tensors, output_path)
-    return tensors
 
 def estimate_ratio(audio_tempo, texture_tempo):
     log_specific_ratio = math.log2(audio_tempo / texture_tempo)

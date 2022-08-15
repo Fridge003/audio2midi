@@ -25,13 +25,14 @@ from pop_style_transfer.time_stretch_song import stretch_a_song
 from pop_style_transfer.perf_render import write_prediction
 from midi_to_pr import midi_to_pr_with_tempo, tensors_to_piano_tree, tensor_to_score
 from arrange_texture import phrase_arrange, Phrasing
-
+from Polydis.model import DisentangleVAE
 
 PARAM_PATH = os.path.realpath(os.path.join(os.path.dirname(__file__),
                                            '..', 'params'))
 DATA_PATH = os.path.realpath(os.path.join(os.path.dirname(__file__), '..', 'data'))
 TRANSCRIBER_PATH = os.path.join(PARAM_PATH, 'pretrained_onsets_and_frames.pt')
-MODEL_PATH = os.path.join(PARAM_PATH, 'a2s-stage1.pt')
+A2S_MODEL_PATH = os.path.join(PARAM_PATH, 'a2s-stage1.pt')
+POLYDIS_MODEL_PATH = os.path.join(PARAM_PATH, 'polydis.pt')
 SONG_PATH = os.path.join(DATA_PATH, 'audio_stretched')
 TEST_AUDIO_PATH = os.path.join(DATA_PATH, 'input_audio')
 ANALYSIS_PATH = os.path.join(DATA_PATH, 'analysis')
@@ -44,9 +45,8 @@ inference_midi_path = os.path.join(INFERENCE_OUT_PATH, 'classical_inf.mid')
 tempo_removed_path =  os.path.join(INFERENCE_OUT_PATH, 'untempoed.mid')
 score_path =  os.path.join(INFERENCE_OUT_PATH, 'score.mid')
 output_path =  os.path.join(INFERENCE_OUT_PATH, 'output.mid')
-unaligned_score_path = os.path.join(INFERENCE_OUT_PATH, 'score_unaligned.mid')
 
-classical_input = 'Revolutionary'
+classical_input = 'Revo_left'
 audio_input = 'demo'
 restrict_ratio = 1.0
 texture_input_path = os.path.join(CLASSICAL_MIDI_PATH, classical_input + '.mid')
@@ -57,7 +57,9 @@ acc_audio_path = os.path.join(TEST_AUDIO_PATH, audio_input + '.wav')
 demo_music_form_path = os.path.join(MUSIC_FORM_PATH, audio_input + '.pkl')
 
 
-model = prepare_model('a2s', stage=0, model_path=MODEL_PATH)
+model = prepare_model('a2s', stage=0, model_path=A2S_MODEL_PATH)
+polydis_model = DisentangleVAE.init_model()
+polydis_model.load_model(POLYDIS_MODEL_PATH, map_location=torch.device('cpu'))
 device = model.device
 batch_size = 32
 
@@ -73,6 +75,7 @@ analysis = analyze_chord_and_beat(acc_audio_path,
 analysis = np.load(save_analysis_npy_path)
 audio, sr = librosa.load(acc_audio_path)
 
+
 # estimate the tempo
 
 #onset_env = librosa.onset.onset_strength(y=audio, sr=sr)
@@ -83,21 +86,18 @@ print(f"Audio tempo = {audio_tempo}")
 
 
 stretched_song, spb, rates = stretch_a_song(analysis[:, 0], audio)
+
 # segment a song into 2-bar segments (batches)
 audios, chords = segment_a_song(analysis, stretched_song, spb)
 
 # only pick the elements with even index in audios and chords, so that segments picked are not overlapped
 audios, chords = audios[::2], chords[::2]
 
-
-to_notes_func = lambda x: model.pianotree_dec. \
-    grid_to_pr_and_notes(x, 60., 0., False)[1]
-
 sym_src = midi_to_pr_with_tempo(original_midi_path=texture_input_path, output_path=output_path,
                                 tempo_removed_path=tempo_removed_path, audio_tempo=audio_tempo, restrict_ratio=restrict_ratio)
 
-sym_src = phrase_arrange(sym_src, classical_music_form_path, demo_music_form_path)
-# tensor_to_score(sym_src, unaligned_score_path)
+# sym_src = phrase_arrange(sym_src, classical_music_form_path, demo_music_form_path)
+
 sym_id, sym_src_len = 0, len(sym_src)
 
 batch_starts = np.arange(0, len(audios), batch_size)
@@ -126,9 +126,9 @@ for start in batch_starts:  # batching
     for i in range(size_0):
         sym[i] = sym_src[sym_id]
         sym_id = (sym_id + 1) % sym_src_len
-
     sym_used.append(sym)
-    pred = model.inference(audio, chord, sym_prompt=sym)
+    # pred = model.inference(audio, chord, sym_prompt=sym)
+    pred = polydis_model.swap(sym, None, None, chord, fix_rhy=True, fix_chd=False)
     predictions.append(pred)
 
 
@@ -139,11 +139,13 @@ score = tensors_to_piano_tree(sym_used)
 # print(score[0], score[1])
 #print(f'prediction shape = {predictions.shape}')
 
+to_notes_func = lambda x: model.pianotree_dec. \
+    grid_to_pr_and_notes(x, 60., 0., False)[1]
 
 print("Rendering predictions......\n")
 write_prediction(inference_midi_path, to_notes_func, analysis,
-                   predictions, audio, sr,
-                   autoregressive=False, bars_overlapped=False)
+                 predictions, audio, sr,
+                 autoregressive=False, bars_overlapped=False)
 
 
 print("Rendering Score......\n")

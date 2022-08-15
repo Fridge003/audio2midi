@@ -1,4 +1,4 @@
-from .dirs import *
+from dirs import *
 import numpy as np
 import pickle
 import os

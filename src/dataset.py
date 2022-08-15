@@ -19,6 +19,7 @@ class AudioMidiDataset(Dataset):
         self.data_samples = data_samples
 
         # a list of complete sample counts in each song
+        # a length of a song is evaluated through the number of its downbeats(segments)
         self.lgths = np.array([len(d) for d in self.data_samples],
                               dtype=np.int64)
 

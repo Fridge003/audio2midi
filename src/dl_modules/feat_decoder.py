@@ -26,20 +26,20 @@ class FeatDecoder(nn.Module):
         self.mse_func = nn.MSELoss()
 
     def forward(self, z, inference, tfr, gt_feat=None):
-
+        # z:(batch_size, 192)
         bs = z.size(0)
-
+        # z_hid: (1, bs, 1024)
         z_hid = self.z2dec_hid(z).unsqueeze(0)
-
+        # z_in: (bs, 1, 128)
         z_in = self.z2dec_in(z).unsqueeze(1)
 
         if inference:
             tfr = 0.
-
+        # token: (bs, 1, 3)
         token = self.init_input.repeat(bs, 1).unsqueeze(1)
 
         out_feats = []
-
+        # n_step = 32
         for t in range(self.n_step):
             y_t, z_hid = \
                 self.gru(torch.cat([token, z_in], dim=-1), z_hid)

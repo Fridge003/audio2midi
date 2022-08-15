@@ -250,16 +250,21 @@ class Audio2Symb(PytorchModel):
         with torch.no_grad():
             z_chd = self.chord_enc(chord).mean
             z_aud = self.audio_enc(audio).mean
-
             z_sym = \
                 torch.zeros(z_aud.size(0), self.z_sym_dim,
                             dtype=z_aud.dtype, device=z_aud.device) \
                 if sym_prompt is None else self.prmat_enc(sym_prompt).mean
-
-            z = torch.cat([z_chd, z_aud, z_sym], -1)
-
+            # recon_feat: (bs, 32, 3)
             recon_feat = self.feat_dec(z_aud, True, 0., None)
+            #bs = recon_feat.shape[0]
+            #recon_feat[:, :, 0] = torch.zeros((bs, 32))
+            #recon_feat[:, :, 0] = torch.ones((bs, 32))
+            #print("recon_feat: \n", recon_feat)
             feat_emb = self.feat_emb_layer(recon_feat)
+            #z_aud = torch.zeros(z_aud.shape)
+            #z_aud = torch.randn(z_aud.shape)
+            #print("z_aud: \n", z_aud)
+            z = torch.cat([z_chd, z_aud, z_sym], -1)
             recon_pitch, recon_dur = \
                 self.pianotree_dec(z, True, None, None, 0., 0., feat_emb)
 

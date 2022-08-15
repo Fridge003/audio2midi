@@ -46,14 +46,17 @@ score_path =  os.path.join(INFERENCE_OUT_PATH, 'score.mid')
 output_path =  os.path.join(INFERENCE_OUT_PATH, 'output.mid')
 unaligned_score_path = os.path.join(INFERENCE_OUT_PATH, 'score_unaligned.mid')
 
-classical_input = 'Revolutionary'
+classical_input = 'Pathetique'
 audio_input = 'demo'
-restrict_ratio = 1.0
+audio_input_alt = '001'
+restrict_ratio = None
 texture_input_path = os.path.join(CLASSICAL_MIDI_PATH, classical_input + '.mid')
 classical_music_form_path = os.path.join(MUSIC_FORM_PATH, classical_input + '.pkl')
 
 save_analysis_npy_path = os.path.join(ANALYSIS_PATH, audio_input + '.npy')
+analysis_alt_path = os.path.join(ANALYSIS_PATH, audio_input_alt + '.npy')
 acc_audio_path = os.path.join(TEST_AUDIO_PATH, audio_input + '.wav')
+acc_audio_path_alt = os.path.join(TEST_AUDIO_PATH, audio_input_alt + '.wav')
 demo_music_form_path = os.path.join(MUSIC_FORM_PATH, audio_input + '.pkl')
 
 
@@ -71,7 +74,9 @@ analysis = analyze_chord_and_beat(acc_audio_path,
 
 
 analysis = np.load(save_analysis_npy_path)
+analysis_alt = np.load(analysis_alt_path)
 audio, sr = librosa.load(acc_audio_path)
+audio2, _ = librosa.load(acc_audio_path_alt)
 
 # estimate the tempo
 
@@ -83,15 +88,15 @@ print(f"Audio tempo = {audio_tempo}")
 
 
 stretched_song, spb, rates = stretch_a_song(analysis[:, 0], audio)
+stretched_song2, spb2, rates2 = stretch_a_song(analysis_alt[:, 0], audio2)
+
 # segment a song into 2-bar segments (batches)
 audios, chords = segment_a_song(analysis, stretched_song, spb)
+audios2, _ = segment_a_song(analysis_alt, stretched_song2, spb2)
 
 # only pick the elements with even index in audios and chords, so that segments picked are not overlapped
 audios, chords = audios[::2], chords[::2]
-
-
-to_notes_func = lambda x: model.pianotree_dec. \
-    grid_to_pr_and_notes(x, 60., 0., False)[1]
+audios2 = audios2[::2]
 
 sym_src = midi_to_pr_with_tempo(original_midi_path=texture_input_path, output_path=output_path,
                                 tempo_removed_path=tempo_removed_path, audio_tempo=audio_tempo, restrict_ratio=restrict_ratio)
@@ -128,7 +133,7 @@ for start in batch_starts:  # batching
         sym_id = (sym_id + 1) % sym_src_len
 
     sym_used.append(sym)
-    pred = model.inference(audio, chord, sym_prompt=sym)
+    pred = model.inference(audio, chord, sym_prompt=sym, set_audio=None, set_feature=None)
     predictions.append(pred)
 
 
@@ -139,11 +144,13 @@ score = tensors_to_piano_tree(sym_used)
 # print(score[0], score[1])
 #print(f'prediction shape = {predictions.shape}')
 
+to_notes_func = lambda x: model.pianotree_dec. \
+    grid_to_pr_and_notes(x, 60., 0., False)[1]
 
 print("Rendering predictions......\n")
 write_prediction(inference_midi_path, to_notes_func, analysis,
-                   predictions, audio, sr,
-                   autoregressive=False, bars_overlapped=False)
+                 predictions, audio, sr,
+                 autoregressive=False, bars_overlapped=False)
 
 
 print("Rendering Score......\n")
