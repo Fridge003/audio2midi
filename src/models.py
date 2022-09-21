@@ -234,7 +234,7 @@ class Audio2Symb(PytorchModel):
         return model
 
 
-    def inference(self, audio, chord, sym_prompt=None):
+    def inference(self, audio, chord, sym_prompt=None, audio_opt=None, feature=None, feature_opt=None, audio_alt=None):
         """
         Forward path during inference. By default, symbolic source is not used.
 
@@ -245,25 +245,38 @@ class Audio2Symb(PytorchModel):
             By default, None.
         :return: pianotree prediction (B, 32, 15, 6) numpy array.
         """
+        audio_option_list = ['alt', 'random', 'zero']
+        feature_dict = {'bass': 0, 'int': 1, 'mel': 2}
+        feature_option_list = ['zero', 'one']
+
+        if (audio_opt and (audio_opt not in audio_option_list)) or (feature and (feature not in feature_dict.keys())) \
+            or (feature_opt and (feature_opt not in feature_option_list)):
+            raise ValueError("Wrong param for inference")
 
         self.eval()
         with torch.no_grad():
             z_chd = self.chord_enc(chord).mean
-            z_aud = self.audio_enc(audio).mean
+            z_aud = self.audio_enc(audio_alt).mean if audio_opt == 'alt' else self.audio_enc(audio).mean
             z_sym = \
                 torch.zeros(z_aud.size(0), self.z_sym_dim,
                             dtype=z_aud.dtype, device=z_aud.device) \
                 if sym_prompt is None else self.prmat_enc(sym_prompt).mean
             # recon_feat: (bs, 32, 3)
             recon_feat = self.feat_dec(z_aud, True, 0., None)
-            #bs = recon_feat.shape[0]
-            #recon_feat[:, :, 0] = torch.zeros((bs, 32))
-            #recon_feat[:, :, 0] = torch.ones((bs, 32))
-            #print("recon_feat: \n", recon_feat)
+            bs = recon_feat.shape[0]
+            if feature:
+                feature_id = feature_dict[feature]
+                if feature_opt == 'zero':
+                    recon_feat[:, :, feature_id] = torch.zeros((bs, 32))
+                if feature_opt == 'one':
+                    recon_feat[:, :, feature_id] = torch.ones((bs, 32))
+            # print("recon_feat: \n", recon_feat)
             feat_emb = self.feat_emb_layer(recon_feat)
-            #z_aud = torch.zeros(z_aud.shape)
-            #z_aud = torch.randn(z_aud.shape)
-            #print("z_aud: \n", z_aud)
+            if audio_opt == 'zero':
+                z_aud = torch.zeros(z_aud.shape)
+            if audio_opt == 'random':
+                z_aud = torch.randn(z_aud.shape)
+            # print("z_aud: \n", z_aud)
             z = torch.cat([z_chd, z_aud, z_sym], -1)
             recon_pitch, recon_dur = \
                 self.pianotree_dec(z, True, None, None, 0., 0., feat_emb)
